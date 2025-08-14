@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:13
+    container_name: rustmicro_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: rustmicro
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Uygulama başlatıldığında migration'ları çalıştırmak için bir script
+      # Bu, uygulama container'ı tarafından yapılacaktır. 
+      # Ancak, örnek verileri önceden yüklemek isterseniz buraya bir SQL dosyası bağlayabilirsiniz.
+      # - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: rustmicro_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  app:
+    build: .
+    container_name: rustmicro_app
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/rustmicro
+      - SERVER_HOST=0.0.0.0
+    depends_on:
+      - db
+    # volumes:
+    #   - .:/usr/src/app
+    # command: ["./wait-for-it.sh", "db:5432", "--", "cargo", "run"]
+
+volumes:
+  postgres_data:
+  pgadmin_data:

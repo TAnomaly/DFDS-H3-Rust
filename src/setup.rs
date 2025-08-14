@@ -1,5 +1,4 @@
 use std::process::Command;
-use std::io;
 
 pub async fn ensure_postgresql_running() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔍 PostgreSQL durumu kontrol ediliyor...");

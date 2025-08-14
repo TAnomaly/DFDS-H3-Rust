@@ -1,8 +1,9 @@
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 use chrono::Utc;
-use crate::models::{User, CreateUser, UpdateUser, Port, CreatePort, UpdatePort};
-use crate::h3_utils::{coords_to_h3, calculate_distance_km, get_k_ring, calculate_k_for_distance, DEFAULT_RESOLUTION};
+use std::collections::HashMap;
+use crate::models::{User, CreateUser, UpdateUser, Port, CreatePort, H3HeatmapResponse, H3HeatmapCell};
+use crate::h3_utils::{coords_to_h3, calculate_distance_km, get_k_ring, DEFAULT_RESOLUTION};
 
 pub struct Database {
     pub pool: PgPool,
@@ -167,6 +168,59 @@ impl Database {
         Ok(users)
     }
     
+    // H3 tabanlı kullanıcı heatmap verilerini getir (dinamik resolution ile)
+    pub async fn get_user_heatmap_data(&self, resolution: u8) -> Result<H3HeatmapResponse, sqlx::Error> {
+        // Kullanıcıları al ve belirtilen resolution'a göre H3 indekslerini yeniden hesapla
+        let users = sqlx::query(
+            "SELECT latitude, longitude FROM users WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        // H3 indekslerini yeni resolution ile hesapla ve grupla
+        let mut h3_groups: HashMap<String, Vec<(f64, f64)>> = HashMap::new();
+        
+        for user in users {
+            let lat: f64 = user.get("latitude");
+            let lng: f64 = user.get("longitude");
+            
+            // Yeni resolution ile H3 indeksini hesapla
+            if let Ok(h3_index) = coords_to_h3(lat, lng, resolution) {
+                h3_groups.entry(h3_index).or_insert_with(Vec::new).push((lat, lng));
+            }
+        }
+
+        // Grupları H3HeatmapCell'lere dönüştür
+        let mut cells = Vec::new();
+
+        let mut total_users = 0i64;
+        
+        for (h3_index, coords) in h3_groups {
+            let user_count = coords.len() as i64;
+            total_users += user_count;
+            
+            // Koordinatların ortalamasını hesapla (hücre merkezi)
+            let center_lat = coords.iter().map(|(lat, _)| lat).sum::<f64>() / coords.len() as f64;
+            let center_lng = coords.iter().map(|(_, lng)| lng).sum::<f64>() / coords.len() as f64;
+            
+            cells.push(H3HeatmapCell {
+                h3_index,
+                user_count,
+                center_latitude: center_lat,
+                center_longitude: center_lng,
+            });
+        }
+        
+        // Kullanıcı sayısına göre sırala
+        cells.sort_by(|a, b| b.user_count.cmp(&a.user_count));
+
+        Ok(H3HeatmapResponse {
+            cells,
+            total_users,
+            resolution,
+        })
+    }
+    
     // ====== PORT OPERATIONS ====== 
     
     // Tüm limanları getir
@@ -235,7 +289,7 @@ impl Database {
     }
     
     // En yakın limanı bul (gerçek km mesafesi ile)
-    pub async fn find_nearest_port(&self, lat: f64, lng: f64, max_distance_km: Option<f64>) -> Result<Option<(Port, f64)>, sqlx::Error> {
+    pub async fn find_nearest_port(&self, lat: f64, lng: f64, max_distance_km: Option<f64>) -> Result<Vec<Port>, sqlx::Error> {
         // H3 index hesapla
         let target_h3 = coords_to_h3(lat, lng, DEFAULT_RESOLUTION)
             .map_err(|e| sqlx::Error::Protocol(format!("H3 hesaplama hatası: {}", e)))?;
@@ -253,7 +307,7 @@ impl Database {
 
         if ring_indices.is_empty() {
             println!("Ring indices boş!");
-            return Ok(None);
+            return Ok(vec![]);
         }
 
         // Ring içindeki hücrelerdeki limanları çek
@@ -266,20 +320,23 @@ impl Database {
         println!("Found {} ports in ring", ports.len());
 
         // Limanları gerçek mesafeye göre filtrele ve en yakın limanı bul
-        let mut nearest_port: Option<(Port, f64)> = None;
-        let mut shortest_distance = f64::MAX;
-
+        let mut nearest_ports: Vec<(Port, f64)> = vec![];
         for port in ports {
             let distance = calculate_distance_km(lat, lng, port.latitude, port.longitude);
             println!("Port: {} - Distance: {:.2} km (max: {:.2} km)", port.name, distance, max_dist);
-            if distance < shortest_distance && distance <= max_dist {
-                shortest_distance = distance;
-                nearest_port = Some((port, distance));
-                println!("New nearest port: {} at {:.2} km", nearest_port.as_ref().unwrap().0.name, distance);
+            if distance <= max_dist {
+                let port_name = port.name.clone();
+                nearest_ports.push((port, distance));
+                println!("Added port: {} at {:.2} km", port_name, distance);
             }
         }
 
-        Ok(nearest_port)
+        // Mesafeye göre sırala
+        nearest_ports.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+        // Sadece portları döndür
+        let ports_only: Vec<Port> = nearest_ports.into_iter().map(|(port, _)| port).collect();
+        Ok(ports_only)
     }
     
     // Ülkeye göre limanları getir

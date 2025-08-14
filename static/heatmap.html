@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>H3 Heatmap - Kullanıcı Dağılımı</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .stats-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+        .stat-item {
+            flex: 1;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .legend {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .legend h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2em;
+            color: #666;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗺️ H3 Heatmap - Kullanıcı Dağılımı</h1>
+        <p>Türkiye genelindeki kullanıcıların H3 hexagon tabanlı dağılımı</p>
+    </div>
+
+    <div class="container">
+        <div class="stats-panel">
+            <div class="stat-item">
+                <div class="stat-number" id="totalUsers">-</div>
+                <div class="stat-label">Toplam Kullanıcı</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalCells">-</div>
+                <div class="stat-label">Aktif H3 Hücre</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="resolution">-</div>
+                <div class="stat-label">H3 Çözünürlük</div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            🔄 Heatmap verileri yükleniyor...
+        </div>
+
+        <div id="error" class="error" style="display: none;">
+            ❌ Veri yüklenirken hata oluştu. Lütfen sunucunun çalıştığından emin olun.
+        </div>
+
+        <div id="map" style="display: none;"></div>
+
+        <div class="legend">
+            <h3>📊 Açıklama</h3>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ff4444;"></div>
+                <span>Yüksek kullanıcı yoğunluğu</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffaa00;"></div>
+                <span>Orta kullanıcı yoğunluğu</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #44ff44;"></div>
+                <span>Düşük kullanıcı yoğunluğu</span>
+            </div>
+            <p><strong>Not:</strong> Her hexagon bir H3 hücresini temsil eder ve o bölgedeki kullanıcı sayısına göre renklendirilir.</p>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+    <script>
+        let map;
+        let heatmapData = [];
+
+        // Haritayı başlat
+        function initMap() {
+            map = L.map('map').setView([39.9334, 32.8597], 6); // Türkiye merkezi
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        // Kullanıcı sayısına göre renk belirle
+        function getColorByUserCount(userCount, maxCount) {
+            const intensity = userCount / maxCount;
+            if (intensity > 0.7) return '#ff4444'; // Kırmızı
+            if (intensity > 0.4) return '#ffaa00'; // Turuncu
+            return '#44ff44'; // Yeşil
+        }
+
+        // H3 hücresini haritada göster
+        function addH3CellToMap(h3Index, userCount, maxCount) {
+            try {
+                // H3 hücresinin sınırlarını al
+                const boundary = h3.cellToBoundary(h3Index, true);
+                
+                // Leaflet polygon oluştur
+                const polygon = L.polygon(boundary, {
+                    color: getColorByUserCount(userCount, maxCount),
+                    fillColor: getColorByUserCount(userCount, maxCount),
+                    fillOpacity: 0.6,
+                    weight: 2
+                });
+
+                // Popup ekle
+                polygon.bindPopup(`
+                    <strong>H3 Hücre:</strong> ${h3Index}<br>
+                    <strong>Kullanıcı Sayısı:</strong> ${userCount}<br>
+                    <strong>Çözünürlük:</strong> ${h3.getResolution(h3Index)}
+                `);
+
+                polygon.addTo(map);
+            } catch (error) {
+                console.error('H3 hücresi eklenirken hata:', error);
+            }
+        }
+
+        // Heatmap verilerini yükle
+        async function loadHeatmapData() {
+            try {
+                const response = await fetch('/api/v1/heatmap');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                heatmapData = data;
+
+                // İstatistikleri güncelle
+                document.getElementById('totalUsers').textContent = data.total_users;
+                document.getElementById('totalCells').textContent = data.cells.length;
+                document.getElementById('resolution').textContent = data.resolution;
+
+                // Haritayı göster
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('map').style.display = 'block';
+                
+                initMap();
+
+                // Maksimum kullanıcı sayısını bul
+                const maxUserCount = Math.max(...data.cells.map(cell => cell.user_count));
+
+                // H3 hücrelerini haritaya ekle
+                data.cells.forEach(cell => {
+                    addH3CellToMap(cell.h3_index, cell.user_count, maxUserCount);
+                });
+
+                console.log('Heatmap başarıyla yüklendi:', data);
+            } catch (error) {
+                console.error('Heatmap yüklenirken hata:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').innerHTML = `
+                    ❌ Veri yüklenirken hata oluştu: ${error.message}<br>
+                    <small>Sunucunun http://localhost:8080 adresinde çalıştığından emin olun.</small>
+                `;
+            }
+        }
+
+        // Sayfa yüklendiğinde başlat
+        document.addEventListener('DOMContentLoaded', loadHeatmapData);
+    </script>
+</body>
+</html>

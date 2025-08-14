@@ -1,0 +1,32 @@
+# .dockerignore dosyası, Docker image'ine kopyalanmasını istemediğimiz dosyaları ve klasörleri belirtir.
+# Bu, build context'inin boyutunu küçülterek build süresini azaltır.
+
+# Git klasörü ve dosyaları
+.git
+.gitignore
+
+# IDE'lerin dosyaları
+.vscode
+.idea
+*.swp
+*.swo
+
+# Rust build çıktıları
+target/
+
+# Log dosyaları
+*.log
+
+# Environment değişkenleri dosyası (Docker içinde ayrı bir şekilde ayarlanacak)
+.env
+
+# Docker dosyaları (kendi kendini referanslama)
+.dockerignore
+
+# Temp klasörü
+tmp/
+temp/
+
+# Opsiyonel: Eğer büyük dosyalarınız varsa ve bunların image'e dahil olmasını istemiyorsanız burada belirtin.
+# Örneğin:
+# large_data_files/

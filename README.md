@@ -91,6 +91,13 @@ Server başarıyla başladığında `http://localhost:8080` adresinde çalışac
 ### İstatistikler
 - **GET** `/api/v1/stats` - Kullanıcı istatistikleri
 
+### Liman İşlemleri
+- **GET** `/api/v1/ports` - Tüm limanları listeler
+- **POST** `/api/v1/ports` - Yeni liman oluşturur
+- **POST** `/api/v1/ports/nearest` - En yakın limanı bulur (latitude ve longitude gereklidir)
+- **GET** `/api/v1/ports/country/{country}` - Ülkeye göre limanları listeler
+- **GET** `/api/v1/ports/type/{port_type}` - Liman tipine göre limanları listeler
+
 ## Örnek Kullanım
 
 ### Tüm Kullanıcıları Listeleme

@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>H3 Hexagon Heatmap - Real Hexagons</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 340px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+            border-right: 1px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: #00d4ff;
+            transform: translateY(-2px);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #00d4ff;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-label {
+            font-size: 12px;
+            color: #ccc;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-value {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+
+        .slider-container {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 212, 255, 0.4);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 212, 255, 0.4);
+        }
+
+        .resolution-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .resolution-btn {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .resolution-btn:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+
+        .resolution-btn.active {
+            background: #00d4ff;
+            border-color: #00d4ff;
+            color: #0a0a0a;
+            font-weight: 600;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            color: #00d4ff;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-bottom: 8px;
+        }
+
+        .action-btn:hover {
+            background: rgba(0, 212, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .action-btn.primary {
+            background: #00d4ff;
+            color: #0a0a0a;
+        }
+
+        .action-btn.primary:hover {
+            background: #0099cc;
+        }
+
+        .legend {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .legend-title {
+            font-size: 14px;
+            color: #fff;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .color-scale {
+            height: 28px;
+            border-radius: 14px;
+            background: linear-gradient(90deg,
+                    #440154 0%,
+                    #482777 14%,
+                    #3f4a8a 28%,
+                    #31678e 42%,
+                    #26838f 57%,
+                    #1f9d8a 71%,
+                    #6cce5a 85%,
+                    #fee825 100%);
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .scale-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #888;
+        }
+
+        .hexagon-info {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+        }
+
+        .hexagon-info p {
+            margin: 4px 0;
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 10, 10, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(0, 212, 255, 0.2);
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            color: #00d4ff;
+            font-size: 16px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* Leaflet popup styling */
+        .leaflet-popup-content-wrapper {
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+        }
+
+        .leaflet-popup-content {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 12px;
+        }
+
+        .leaflet-popup-tip {
+            background: #1a1a1a;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="logo">
+                ⬢ H3 Hexagon Pro
+            </div>
+
+            <div class="section">
+                <div class="section-title">Statistics</div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-value" id="totalUsers">-</span>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="totalCells">-</span>
+                        <div class="stat-label">H3 Cells</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="currentResolution">-</span>
+                        <div class="stat-label">Resolution</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="maxDensity">-</span>
+                        <div class="stat-label">Max Density</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">H3 Resolution</div>
+                <div class="resolution-grid">
+                    <button class="resolution-btn" data-resolution="6">Res 6</button>
+                    <button class="resolution-btn" data-resolution="7">Res 7</button>
+                    <button class="resolution-btn active" data-resolution="8">Res 8</button>
+                    <button class="resolution-btn" data-resolution="9">Res 9</button>
+                    <button class="resolution-btn" data-resolution="10">Res 10</button>
+                    <button class="resolution-btn" data-resolution="11">Res 11</button>
+                </div>
+                <div class="hexagon-info">
+                    <p><strong>Resolution <span id="resInfo">8</span>:</strong></p>
+                    <p id="resDescription">Medium detail hexagons (~0.7km² area)</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Visual Controls</div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Hexagon Opacity</span>
+                        <span class="control-value" id="opacityValue">70%</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="opacitySlider" class="slider" min="10" max="100" value="70">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Border Width</span>
+                        <span class="control-value" id="borderValue">2px</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="borderSlider" class="slider" min="1" max="5" value="2">
+                    </div>
+                </div>
+
+                <button id="refreshBtn" class="action-btn primary">🔄 Refresh Data</button>
+                <button id="zoomToDataBtn" class="action-btn">🎯 Zoom to Data</button>
+                <button id="toggleAnimationBtn" class="action-btn">✨ Toggle Animation</button>
+            </div>
+
+            <div class="legend">
+                <div class="legend-title">User Density Scale</div>
+                <div class="color-scale"></div>
+                <div class="scale-labels">
+                    <span>Low</span>
+                    <span>Medium</span>
+                    <span>High</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+            <div id="loadingOverlay" class="loading-overlay">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading H3 hexagon data...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map;
+        let hexagonLayers = [];
+        let heatmapData = null;
+        let currentResolution = 8;
+        let animationEnabled = false;
+
+        // Viridis-like color palette
+        const colorPalette = [
+            '#440154', '#482777', '#3f4a8a', '#31678e',
+            '#26838f', '#1f9d8a', '#6cce5a', '#fee825'
+        ];
+
+        // Resolution descriptions
+        const resolutionInfo = {
+            6: { desc: "Very large hexagons (~36km² area)", zoom: 5 },
+            7: { desc: "Large hexagons (~5km² area)", zoom: 6 },
+            8: { desc: "Medium hexagons (~0.7km² area)", zoom: 7 },
+            9: { desc: "Small hexagons (~0.1km² area)", zoom: 8 },
+            10: { desc: "Very small hexagons (~0.015km² area)", zoom: 9 },
+            11: { desc: "Tiny hexagons (~0.002km² area)", zoom: 10 }
+        };
+
+        function initializeMap() {
+            map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false,
+                preferCanvas: true // Better performance for many polygons
+            }).setView([39.9334, 32.8597], 7);
+
+            // Dark theme basemap
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Add zoom control
+            L.control.zoom({
+                position: 'bottomright'
+            }).addTo(map);
+        }
+
+        function getColorByDensity(userCount, minCount, maxCount) {
+            if (maxCount === minCount) return colorPalette[0];
+
+            const normalized = (userCount - minCount) / (maxCount - minCount);
+            const index = Math.floor(normalized * (colorPalette.length - 1));
+            return colorPalette[Math.min(index, colorPalette.length - 1)];
+        }
+
+        // Create real hexagon shape (approximation using polygon)
+        function createHexagonPoints(centerLat, centerLng, radius) {
+            const points = [];
+            const earthRadius = 6371000; // meters
+
+            // Convert radius from meters to degrees (approximate)
+            const radiusLat = radius / earthRadius * (180 / Math.PI);
+            const radiusLng = radiusLat / Math.cos(centerLat * Math.PI / 180);
+
+            // Create 6 points for hexagon
+            for (let i = 0; i < 6; i++) {
+                const angle = (i * 60) * Math.PI / 180; // 60 degrees between points
+                const lat = centerLat + radiusLat * Math.cos(angle);
+                const lng = centerLng + radiusLng * Math.sin(angle);
+                points.push([lat, lng]);
+            }
+
+            return points;
+        }
+
+        function createHexagon(centerLat, centerLng, userCount, minCount, maxCount, h3Index) {
+            const color = getColorByDensity(userCount, minCount, maxCount);
+
+            // Calculate hexagon size based on resolution and user count
+            const baseRadius = getHexagonRadius(currentResolution);
+            const sizeMultiplier = Math.max(0.5, Math.log(userCount + 1) / Math.log(2));
+            const radius = baseRadius * sizeMultiplier;
+
+            const hexagonPoints = createHexagonPoints(centerLat, centerLng, radius);
+
+            const hexagon = L.polygon(hexagonPoints, {
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.7,
+                weight: 2,
+                opacity: 0.9,
+                className: 'hexagon-cell'
+            });
+
+            // Enhanced popup
+            hexagon.bindPopup(`
+                <div style="color: #fff; font-family: -apple-system, sans-serif;">
+                    <h4 style="margin: 0 0 10px 0; color: #00d4ff;">⬢ H3 Hexagon</h4>
+                    <p><strong>Users:</strong> ${userCount}</p>
+                    <p><strong>H3 Index:</strong> <code style="background: #333; padding: 2px 4px; border-radius: 3px;">${h3Index}</code></p>
+                    <p><strong>Center:</strong> ${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}</p>
+                    <p><strong>Resolution:</strong> ${currentResolution}</p>
+                    <p><strong>Density:</strong> ${((userCount / (heatmapData?.total_users || 1)) * 100).toFixed(1)}%</p>
+                </div>
+            `, {
+                maxWidth: 300,
+                className: 'custom-popup'
+            });
+
+            // Hover effects
+            if (animationEnabled) {
+                hexagon.on('mouseover', function (e) {
+                    this.setStyle({
+                        weight: 4,
+                        fillOpacity: Math.min(0.9, this.options.fillOpacity + 0.2),
+                        color: '#00d4ff'
+                    });
+                });
+
+                hexagon.on('mouseout', function (e) {
+                    this.setStyle({
+                        weight: 2,
+                        fillOpacity: 0.7,
+                        color: color
+                    });
+                });
+            }
+
+            return hexagon;
+        }
+
+        function getHexagonRadius(resolution) {
+            // Approximate hexagon radius in meters for different resolutions
+            const radii = {
+                6: 3000,  // ~3km
+                7: 1200,  // ~1.2km
+                8: 500,   // ~500m
+                9: 200,   // ~200m
+                10: 80,   // ~80m
+                11: 30    // ~30m
+            };
+            return radii[resolution] || 500;
+        }
+
+        function clearHexagons() {
+            hexagonLayers.forEach(layer => {
+                map.removeLayer(layer);
+            });
+            hexagonLayers = [];
+        }
+
+        function renderHeatmap() {
+            clearHexagons();
+
+            if (!heatmapData || !heatmapData.cells || heatmapData.cells.length === 0) {
+                console.warn('No heatmap data available');
+                return;
+            }
+
+            const userCounts = heatmapData.cells.map(cell => cell.user_count);
+            const minCount = Math.min(...userCounts);
+            const maxCount = Math.max(...userCounts);
+
+            console.log(`Rendering ${heatmapData.cells.length} hexagons at resolution ${currentResolution}`);
+
+            heatmapData.cells.forEach((cell, index) => {
+                try {
+                    const hexagon = createHexagon(
+                        cell.center_latitude,
+                        cell.center_longitude,
+                        cell.user_count,
+                        minCount,
+                        maxCount,
+                        cell.h3_index
+                    );
+
+                    hexagonLayers.push(hexagon);
+                    hexagon.addTo(map);
+
+                } catch (error) {
+                    console.error(`Error creating hexagon ${index}:`, error);
+                }
+            });
+
+            console.log(`Successfully rendered ${hexagonLayers.length} hexagons`);
+        }
+
+        async function loadHeatmapData(resolution = currentResolution) {
+            try {
+                document.getElementById('loadingOverlay').style.display = 'flex';
+                document.querySelector('.loading-text').textContent = `Loading resolution ${resolution} data...`;
+
+                console.log(`Loading heatmap data for resolution ${resolution}...`);
+                const response = await fetch(`/api/v1/heatmap?resolution=${resolution}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                heatmapData = await response.json();
+                currentResolution = resolution;
+
+                console.log('Heatmap data loaded:', heatmapData);
+
+                // Update statistics
+                document.getElementById('totalUsers').textContent = heatmapData.total_users;
+                document.getElementById('totalCells').textContent = heatmapData.cells.length;
+                document.getElementById('currentResolution').textContent = heatmapData.resolution;
+
+                const maxDensity = Math.max(...heatmapData.cells.map(cell => cell.user_count));
+                document.getElementById('maxDensity').textContent = maxDensity;
+
+                // Update resolution info
+                updateResolutionInfo(resolution);
+
+                // Hide loading overlay
+                document.getElementById('loadingOverlay').style.display = 'none';
+
+                // Initialize map if not already done
+                if (!map) {
+                    initializeMap();
+                }
+
+                // Render hexagons
+                renderHeatmap();
+
+                console.log('Heatmap visualization complete');
+
+            } catch (error) {
+                console.error('Error loading heatmap data:', error);
+                document.getElementById('loadingOverlay').innerHTML = `
+                    <div class="error-message">
+                        <h3>❌ Error Loading Data</h3>
+                        <p>${error.message}</p>
+                        <p>Make sure the server is running on http://localhost:8080</p>
+                        <button onclick="loadHeatmapData(${resolution})" class="action-btn primary" style="margin-top: 20px;">🔄 Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        function updateResolutionInfo(resolution) {
+            const info = resolutionInfo[resolution];
+            document.getElementById('resInfo').textContent = resolution;
+            document.getElementById('resDescription').textContent = info.desc;
+        }
+
+        function zoomToData() {
+            if (!heatmapData || !heatmapData.cells || heatmapData.cells.length === 0) return;
+
+            const bounds = L.latLngBounds();
+            heatmapData.cells.forEach(cell => {
+                bounds.extend([cell.center_latitude, cell.center_longitude]);
+            });
+
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+
+        function updateVisualControls() {
+            const opacity = document.getElementById('opacitySlider').value / 100;
+            const borderWidth = document.getElementById('borderSlider').value;
+
+            hexagonLayers.forEach(layer => {
+                layer.setStyle({
+                    fillOpacity: opacity,
+                    weight: borderWidth
+                });
+            });
+        }
+
+        // Event listeners
+        document.getElementById('opacitySlider').addEventListener('input', function (e) {
+            document.getElementById('opacityValue').textContent = e.target.value + '%';
+            updateVisualControls();
+        });
+
+        document.getElementById('borderSlider').addEventListener('input', function (e) {
+            document.getElementById('borderValue').textContent = e.target.value + 'px';
+            updateVisualControls();
+        });
+
+        // Resolution buttons
+        document.querySelectorAll('.resolution-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const resolution = parseInt(this.dataset.resolution);
+
+                // Update active button
+                document.querySelectorAll('.resolution-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                // Load new data
+                loadHeatmapData(resolution);
+            });
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', function () {
+            loadHeatmapData(currentResolution);
+        });
+
+        document.getElementById('zoomToDataBtn').addEventListener('click', zoomToData);
+
+        document.getElementById('toggleAnimationBtn').addEventListener('click', function () {
+            animationEnabled = !animationEnabled;
+            this.textContent = animationEnabled ? '✨ Animation ON' : '✨ Animation OFF';
+            this.classList.toggle('primary', animationEnabled);
+        });
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('H3 Hexagon Heatmap starting...');
+            loadHeatmapData(8); // Start with resolution 8
+        });
+    </script>
+</body>
+
+</html>

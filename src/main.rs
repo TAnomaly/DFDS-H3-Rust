@@ -12,6 +12,15 @@ use sqlx::postgres::PgPoolOptions;
 use routes::configure_routes;
 use config::AppConfig;
 use database::Database;
+// Swagger UI imports
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+// Import handler functions for Swagger documentation
+use crate::handlers::{
+    index, health_check, create_user, get_user, get_all_users, update_user, delete_user, get_stats,
+    get_all_ports, create_port, find_nearest_port, get_ports_by_country, get_ports_by_type
+};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -89,6 +98,52 @@ async fn main() -> std::io::Result<()> {
     // Başarı banner'ını göster
     setup::print_success_banner();
 
+    // Define OpenAPI documentation
+    #[derive(OpenApi)]
+    #[openapi(
+        paths(
+            handlers::index,
+            handlers::health_check,
+            handlers::get_stats,
+            handlers::get_all_users,
+            handlers::create_user,
+            handlers::get_user,
+            handlers::update_user,
+            handlers::delete_user,
+            handlers::get_all_ports,
+            handlers::create_port,
+            handlers::find_nearest_port,
+            handlers::get_ports_by_country,
+            handlers::get_ports_by_type,
+            handlers::get_user_heatmap,
+        ),
+        components(
+            schemas(
+                models::User,
+                models::CreateUser,
+                models::UpdateUser,
+                models::UserResponse,
+                models::Port,
+                models::CreatePort,
+                models::UpdatePort,
+                models::PortResponse,
+                models::FindNearestPortRequest,
+                models::H3HeatmapResponse,
+                models::H3HeatmapCell,
+                models::DateTimeSchema,
+                handlers::ApiResponse,
+                handlers::StatsResponse,
+            )
+        ),
+        tags(
+            (name = "health", description = "Health check endpoints"),
+            (name = "users", description = "User management endpoints"),
+            (name = "ports", description = "Port management endpoints"),
+            (name = "stats", description = "Statistics endpoints"),
+        )
+    )]
+    struct ApiDoc;
+
     HttpServer::new(move || {
         let cors = Cors::default()
             .allow_any_origin()
@@ -100,6 +155,11 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .wrap(Logger::default())
             .configure(configure_routes)
+            // Swagger UI integration
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", ApiDoc::openapi())
+            )
     })
     .bind(config.server_address())?
     .run()

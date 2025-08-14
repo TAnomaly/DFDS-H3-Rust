@@ -2,44 +2,85 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use sqlx::FromRow;
+use utoipa::ToSchema;
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
+
+// Custom DateTime wrapper for Swagger
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+#[schema(
+    title = "DateTime",
+    description = "ISO 8601 DateTime string",
+    example = "2024-01-01T00:00:00Z",
+    value_type = String,
+    format = "date-time"
+)]
+pub struct DateTimeSchema;
+
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone, ToSchema)]
 pub struct User {
+    /// Kullanıcının benzersiz kimliği (UUID)
     pub id: Uuid,
+    /// Kullanıcının adı
     pub name: String,
+    /// Kullanıcının e-posta adresi
     pub email: String,
+    /// Kullanıcının enlemi (isteğe bağlı)
     pub latitude: Option<f64>,
+    /// Kullanıcının boylamı (isteğe bağlı)
     pub longitude: Option<f64>,
+    /// Kullanıcının H3 indeksi (isteğe bağlı)
     pub h3_index: Option<String>,
+    /// Kullanıcının oluşturulma tarihi
+    #[schema(value_type = String, format = "date-time", example = "2024-01-01T00:00:00Z")]
     pub created_at: DateTime<Utc>,
+    /// Kullanıcının güncellenme tarihi
+    #[schema(value_type = String, format = "date-time", example = "2024-01-01T00:00:00Z")]
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateUser {
+    /// Kullanıcının adı
     pub name: String,
+    /// Kullanıcının e-posta adresi
     pub email: String,
+    /// Kullanıcının enlemi (isteğe bağlı)
     pub latitude: Option<f64>,
+    /// Kullanıcının boylamı (isteğe bağlı)
     pub longitude: Option<f64>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct UpdateUser {
+    /// Kullanıcının adı (isteğe bağlı)
     pub name: Option<String>,
+    /// Kullanıcının e-posta adresi (isteğe bağlı)
     pub email: Option<String>,
+    /// Kullanıcının enlemi (isteğe bağlı)
     pub latitude: Option<f64>,
+    /// Kullanıcının boylamı (isteğe bağlı)
     pub longitude: Option<f64>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct UserResponse {
+    /// Kullanıcının string formatında kimliği
     pub id: String,
+    /// Kullanıcının adı
     pub name: String,
+    /// Kullanıcının e-posta adresi
     pub email: String,
+    /// Kullanıcının enlemi (isteğe bağlı)
     pub latitude: Option<f64>,
+    /// Kullanıcının boylamı (isteğe bağlı)
     pub longitude: Option<f64>,
+    /// Kullanıcının H3 indeksi (isteğe bağlı)
     pub h3_index: Option<String>,
+    /// Kullanıcının oluşturulma tarihi
+    #[schema(value_type = String, format = "date-time", example = "2024-01-01T00:00:00Z")]
     pub created_at: DateTime<Utc>,
+    /// Kullanıcının güncellenme tarihi
+    #[schema(value_type = String, format = "date-time", example = "2024-01-01T00:00:00Z")]
     pub updated_at: DateTime<Utc>,
 }
 
@@ -59,72 +100,112 @@ impl From<User> for UserResponse {
 }
 
 // Port (Liman) modelleri
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone, ToSchema)]
 pub struct Port {
+    /// Limanın benzersiz kimliği (UUID)
     pub id: Uuid,
+    /// Limanın adı
     pub name: String,
-    pub code: String, // IATA/ICAO kodu (örn: TRIST, TRMER)
+    /// Limanın IATA/ICAO kodu (örn: TRIST, TRMER)
+    pub code: String,
+    /// Limanın bulunduğu ülke
     pub country: String,
+    /// Limanın bulunduğu şehir
     pub city: String,
+    /// Limanın enlemi
     pub latitude: f64,
+    /// Limanın boylamı
     pub longitude: f64,
+    /// Limanın H3 indeksi
     pub h3_index: String,
-    pub port_type: String, // "container", "cruise", "cargo", "fishing"
-    pub capacity: Option<i32>, // TEU kapasitesi
+    /// Limanın tipi ("container", "cruise", "cargo", "fishing")
+    pub port_type: String,
+    /// TEU kapasitesi (isteğe bağlı)
+    pub capacity: Option<i32>,
+    /// Limanın oluşturulma tarihi
+    #[schema(value_type = String, format = "date-time", example = "2024-01-01T00:00:00Z")]
     pub created_at: DateTime<Utc>,
+    /// Limanın güncellenme tarihi
+    #[schema(value_type = String, format = "date-time", example = "2024-01-01T00:00:00Z")]
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreatePort {
+    /// Limanın adı
     pub name: String,
+    /// Limanın IATA/ICAO kodu (örn: TRIST, TRMER)
     pub code: String,
+    /// Limanın bulunduğu ülke
     pub country: String,
+    /// Limanın bulunduğu şehir
     pub city: String,
+    /// Limanın enlemi
     pub latitude: f64,
+    /// Limanın boylamı
     pub longitude: f64,
+    /// Limanın tipi ("container", "cruise", "cargo", "fishing")
     pub port_type: String,
+    /// TEU kapasitesi (isteğe bağlı)
     pub capacity: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct UpdatePort {
+    /// Limanın adı (isteğe bağlı)
     pub name: Option<String>,
+    /// Limanın IATA/ICAO kodu (örn: TRIST, TRMER) (isteğe bağlı)
     pub code: Option<String>,
+    /// Limanın bulunduğu ülke (isteğe bağlı)
     pub country: Option<String>,
+    /// Limanın bulunduğu şehir (isteğe bağlı)
     pub city: Option<String>,
+    /// Limanın enlemi (isteğe bağlı)
     pub latitude: Option<f64>,
+    /// Limanın boylamı (isteğe bağlı)
     pub longitude: Option<f64>,
+    /// Limanın tipi ("container", "cruise", "cargo", "fishing") (isteğe bağlı)
     pub port_type: Option<String>,
+    /// TEU kapasitesi (isteğe bağlı)
     pub capacity: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct PortResponse {
+    /// Limanın string formatında kimliği
     pub id: String,
+    /// Limanın adı
     pub name: String,
+    /// Limanın IATA/ICAO kodu (örn: TRIST, TRMER)
     pub code: String,
+    /// Limanın bulunduğu ülke
     pub country: String,
+    /// Limanın bulunduğu şehir
     pub city: String,
+    /// Limanın enlemi
     pub latitude: f64,
+    /// Limanın boylamı
     pub longitude: f64,
+    /// Limanın H3 indeksi
     pub h3_index: String,
+    /// Limanın tipi ("container", "cruise", "cargo", "fishing")
     pub port_type: String,
+    /// TEU kapasitesi (isteğe bağlı)
     pub capacity: Option<i32>,
+    /// Limanın oluşturulma tarihi
+    #[schema(value_type = String, format = "date-time", example = "2024-01-01T00:00:00Z")]
     pub created_at: DateTime<Utc>,
+    /// Limanın güncellenme tarihi
+    #[schema(value_type = String, format = "date-time", example = "2024-01-01T00:00:00Z")]
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct FindNearestPortRequest {
+    /// Arama yapılacak konumun enlemi
     pub latitude: f64,
+    /// Arama yapılacak konumun boylamı
     pub longitude: f64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NearestPortResponse {
-    pub port: PortResponse,
-    pub distance_km: f64, // Gerçek mesafe km cinsinden
 }
 
 impl From<Port> for PortResponse {
@@ -144,4 +225,27 @@ impl From<Port> for PortResponse {
             updated_at: port.updated_at,
         }
     }
+}
+
+// H3 heatmap için model
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct H3HeatmapCell {
+    /// H3 hücre indeksi
+    pub h3_index: String,
+    /// Hücredeki kullanıcı sayısı
+    pub user_count: i64,
+    /// Hücrenin merkez enlemi
+    pub center_latitude: f64,
+    /// Hücrenin merkez boylamı
+    pub center_longitude: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct H3HeatmapResponse {
+    /// Heatmap hücreleri
+    pub cells: Vec<H3HeatmapCell>,
+    /// Toplam kullanıcı sayısı
+    pub total_users: i64,
+    /// Heatmap için kullanılan H3 çözünürlüğü
+    pub resolution: u8,
 }

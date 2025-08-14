@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>H3 Hexagon Heatmap - Professional</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: linear-gradient(180deg, #2a2a2a 0%, #1e1e1e 100%);
+            border-right: 1px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stats-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #00d4ff;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #00d4ff;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .controls-section {
+            margin-bottom: 30px;
+        }
+
+        .control-item {
+            margin-bottom: 20px;
+        }
+
+        .control-label {
+            font-size: 12px;
+            color: #ccc;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .slider-container {
+            position: relative;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 212, 255, 0.3);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            border: none;
+        }
+
+        .toggle-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid #00d4ff;
+            border-radius: 6px;
+            color: #00d4ff;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-bottom: 8px;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .toggle-btn.active {
+            background: #00d4ff;
+            color: #1a1a1a;
+        }
+
+        .legend {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .legend-title {
+            font-size: 14px;
+            color: #fff;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .color-scale {
+            height: 24px;
+            border-radius: 12px;
+            background: linear-gradient(90deg, 
+                #2d1b69 0%,
+                #3e2f5b 16%,
+                #4f4788 33%,
+                #2d6a4f 50%,
+                #40916c 66%,
+                #95d5b2 83%,
+                #d8f3dc 100%
+            );
+            margin-bottom: 8px;
+        }
+
+        .scale-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #888;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0d1421;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 26, 26, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 212, 255, 0.3);
+            border-top: 3px solid #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #00d4ff;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* Leaflet popup styling */
+        .leaflet-popup-content-wrapper {
+            background: #2a2a2a;
+            color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .leaflet-popup-content {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .leaflet-popup-tip {
+            background: #2a2a2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="logo">
+                🗺️ H3 Heatmap Pro
+            </div>
+
+            <div class="stats-section">
+                <div class="section-title">Statistics</div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-value" id="totalUsers">-</span>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="totalCells">-</span>
+                        <div class="stat-label">H3 Cells</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="resolution">-</span>
+                        <div class="stat-label">Resolution</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="maxDensity">-</span>
+                        <div class="stat-label">Max Density</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-section">
+                <div class="section-title">Controls</div>
+                
+                <div class="control-item">
+                    <label class="control-label">Opacity: <span id="opacityValue">70%</span></label>
+                    <input type="range" id="opacitySlider" class="slider" min="0" max="100" value="70">
+                </div>
+
+                <div class="control-item">
+                    <button id="refreshBtn" class="toggle-btn">🔄 Refresh Data</button>
+                    <button id="zoomToDataBtn" class="toggle-btn">🎯 Zoom to Data</button>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-title">User Density</div>
+                <div class="color-scale"></div>
+                <div class="scale-labels">
+                    <span>Low</span>
+                    <span>Medium</span>
+                    <span>High</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+            <div id="loadingOverlay" class="loading-overlay">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading H3 heatmap data...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map;
+        let hexagonLayers = [];
+        let heatmapData = null;
+
+        // Color palette for heatmap
+        const colorPalette = [
+            '#2d1b69', // Very low
+            '#3e2f5b', // Low
+            '#4f4788', // Medium-low
+            '#2d6a4f', // Medium
+            '#40916c', // Medium-high
+            '#95d5b2', // High
+            '#d8f3dc'  // Very high
+        ];
+
+        function initializeMap() {
+            map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([39.9334, 32.8597], 6);
+
+            // Dark theme basemap
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap contributors © CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Add zoom control
+            L.control.zoom({
+                position: 'bottomright'
+            }).addTo(map);
+        }
+
+        function getColorByDensity(userCount, minCount, maxCount) {
+            if (maxCount === minCount) return colorPalette[0];
+            
+            const normalized = (userCount - minCount) / (maxCount - minCount);
+            const index = Math.floor(normalized * (colorPalette.length - 1));
+            return colorPalette[Math.min(index, colorPalette.length - 1)];
+        }
+
+        function createSimpleHexagon(centerLat, centerLng, userCount, minCount, maxCount, h3Index) {
+            // Create a simple hexagon approximation using a circle with higher radius
+            const color = getColorByDensity(userCount, minCount, maxCount);
+            const radius = Math.max(2000, userCount * 500); // Minimum 2km radius
+            
+            const hexagon = L.circle([centerLat, centerLng], {
+                radius: radius,
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.7,
+                weight: 2,
+                opacity: 0.9
+            });
+
+            // Enhanced popup
+            hexagon.bindPopup(`
+                <div style="color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+                    <h4 style="margin: 0 0 10px 0; color: #00d4ff;">H3 Cell</h4>
+                    <p><strong>Users:</strong> ${userCount}</p>
+                    <p><strong>H3 Index:</strong> ${h3Index}</p>
+                    <p><strong>Center:</strong> ${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}</p>
+                    <p><strong>Density:</strong> ${((userCount / (heatmapData?.total_users || 1)) * 100).toFixed(1)}%</p>
+                </div>
+            `, {
+                maxWidth: 300,
+                className: 'custom-popup'
+            });
+
+            // Hover effects
+            hexagon.on('mouseover', function(e) {
+                this.setStyle({
+                    weight: 4,
+                    fillOpacity: Math.min(0.9, this.options.fillOpacity + 0.2)
+                });
+            });
+
+            hexagon.on('mouseout', function(e) {
+                this.setStyle({
+                    weight: 2,
+                    fillOpacity: 0.7
+                });
+            });
+
+            return hexagon;
+        }
+
+        function clearHexagons() {
+            hexagonLayers.forEach(layer => {
+                map.removeLayer(layer);
+            });
+            hexagonLayers = [];
+        }
+
+        function renderHeatmap() {
+            clearHexagons();
+
+            if (!heatmapData || !heatmapData.cells || heatmapData.cells.length === 0) {
+                console.warn('No heatmap data available');
+                return;
+            }
+
+            const userCounts = heatmapData.cells.map(cell => cell.user_count);
+            const minCount = Math.min(...userCounts);
+            const maxCount = Math.max(...userCounts);
+
+            console.log(`Rendering ${heatmapData.cells.length} hexagons`);
+            console.log(`User count range: ${minCount} - ${maxCount}`);
+
+            heatmapData.cells.forEach((cell, index) => {
+                try {
+                    const hexagon = createSimpleHexagon(
+                        cell.center_latitude,
+                        cell.center_longitude,
+                        cell.user_count,
+                        minCount,
+                        maxCount,
+                        cell.h3_index
+                    );
+
+                    hexagonLayers.push(hexagon);
+                    hexagon.addTo(map);
+                    
+                    console.log(`Added hexagon ${index + 1}: ${cell.user_count} users at (${cell.center_latitude}, ${cell.center_longitude})`);
+                } catch (error) {
+                    console.error(`Error creating hexagon ${index}:`, error);
+                }
+            });
+
+            console.log(`Successfully rendered ${hexagonLayers.length} hexagons`);
+        }
+
+        async function loadHeatmapData() {
+            try {
+                console.log('Loading heatmap data...');
+                const response = await fetch('/api/v1/heatmap');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                heatmapData = await response.json();
+                console.log('Heatmap data loaded:', heatmapData);
+
+                // Update statistics
+                document.getElementById('totalUsers').textContent = heatmapData.total_users;
+                document.getElementById('totalCells').textContent = heatmapData.cells.length;
+                document.getElementById('resolution').textContent = heatmapData.resolution;
+                
+                const maxDensity = Math.max(...heatmapData.cells.map(cell => cell.user_count));
+                document.getElementById('maxDensity').textContent = maxDensity;
+
+                // Hide loading overlay
+                document.getElementById('loadingOverlay').style.display = 'none';
+
+                // Initialize map and render heatmap
+                initializeMap();
+                renderHeatmap();
+
+                console.log('Heatmap visualization complete');
+
+            } catch (error) {
+                console.error('Error loading heatmap data:', error);
+                document.getElementById('loadingOverlay').innerHTML = `
+                    <div class="error-message">
+                        <h3>❌ Error Loading Data</h3>
+                        <p>${error.message}</p>
+                        <p>Make sure the server is running on http://localhost:8080</p>
+                        <button onclick="loadHeatmapData()" class="toggle-btn" style="margin-top: 20px;">🔄 Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        function zoomToData() {
+            if (!heatmapData || !heatmapData.cells || heatmapData.cells.length === 0) return;
+
+            const bounds = L.latLngBounds();
+            heatmapData.cells.forEach(cell => {
+                bounds.extend([cell.center_latitude, cell.center_longitude]);
+            });
+
+            map.fitBounds(bounds, { padding: [20, 20] });
+        }
+
+        // Event listeners
+        document.getElementById('opacitySlider').addEventListener('input', function(e) {
+            const opacity = e.target.value / 100;
+            document.getElementById('opacityValue').textContent = e.target.value + '%';
+            
+            hexagonLayers.forEach(layer => {
+                layer.setStyle({ fillOpacity: opacity });
+            });
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', function() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            loadHeatmapData();
+        });
+
+        document.getElementById('zoomToDataBtn').addEventListener('click', zoomToData);
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Application starting...');
+            loadHeatmapData();
+        });
+    </script>
+</body>
+</html>

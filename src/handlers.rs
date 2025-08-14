@@ -2,21 +2,22 @@ use actix_web::{web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::database::Database;
-use crate::models::{CreateUser, UpdateUser, UserResponse, CreatePort, PortResponse, FindNearestPortRequest, NearestPortResponse};
+use crate::models::{CreateUser, UpdateUser, UserResponse, CreatePort, PortResponse, FindNearestPortRequest, H3HeatmapResponse};
 
-#[derive(Serialize, Deserialize)]
-pub struct ApiResponse {
-    pub message: String,
-    pub status: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct StatsResponse {
-    pub total_users: i64,
-    pub status: String,
-}
-
-// Ana sayfa endpoint'i
+/// API ana sayfası
+/// 
+/// Bu endpoint, API'nin çalıştığını ve temel bilgileri döndürür.
+/// 
+/// # Returns
+/// 
+/// * `HttpResponse` - JSON formatında API bilgisi
+#[utoipa::path(
+    get,
+    path = "/",
+    responses(
+        (status = 200, description = "API çalışıyor", body = ApiResponse)
+    )
+)]
 pub async fn index() -> Result<HttpResponse> {
     let response = ApiResponse {
         message: "Rust Microservice API'ye hoş geldiniz!".to_string(),
@@ -25,7 +26,21 @@ pub async fn index() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(response))
 }
 
-// Sağlık kontrolü endpoint'i
+/// Sağlık kontrolü
+/// 
+/// Bu endpoint, API'nin sağlık durumunu kontrol eder.
+/// 
+/// # Returns
+/// 
+/// * `HttpResponse` - JSON formatında sağlık durumu
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "health",
+    responses(
+        (status = 200, description = "API çalışıyor", body = ApiResponse)
+    )
+)]
 pub async fn health_check() -> Result<HttpResponse> {
     let response = ApiResponse {
         message: "API çalışıyor".to_string(),
@@ -34,7 +49,37 @@ pub async fn health_check() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(response))
 }
 
+#[derive(Serialize, Deserialize, utoipa::ToSchema)]
+pub struct ApiResponse {
+    pub message: String,
+    pub status: String,
+}
+
+#[derive(Serialize, Deserialize, utoipa::ToSchema)]
+pub struct StatsResponse {
+    pub total_users: i64,
+    pub status: String,
+}
+
+// Sağlık kontrolü endpoint'i
+// pub async fn health_check() -> Result<HttpResponse> {
+//     let response = ApiResponse {
+//         message: "API çalışıyor".to_string(),
+//         status: "healthy".to_string(),
+//     };
+//     Ok(HttpResponse::Ok().json(response))
+// }
+
 // İstatistikler endpoint'i
+#[utoipa::path(
+    get,
+    path = "/api/v1/stats",
+    tag = "stats",
+    responses(
+        (status = 200, description = "İstatistikler", body = StatsResponse),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
 pub async fn get_stats(db: web::Data<Database>) -> Result<HttpResponse> {
     match db.count_users().await {
         Ok(count) => {
@@ -56,6 +101,15 @@ pub async fn get_stats(db: web::Data<Database>) -> Result<HttpResponse> {
 }
 
 // Tüm kullanıcıları getirme endpoint'i (GET)
+#[utoipa::path(
+    get,
+    path = "/api/v1/users",
+    tag = "users",
+    responses(
+        (status = 200, description = "Kullanıcı listesi", body = Vec<UserResponse>),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
 pub async fn get_all_users(db: web::Data<Database>) -> Result<HttpResponse> {
     match db.get_all_users().await {
         Ok(users) => {
@@ -74,6 +128,17 @@ pub async fn get_all_users(db: web::Data<Database>) -> Result<HttpResponse> {
 }
 
 // Kullanıcı oluşturma endpoint'i (POST)
+#[utoipa::path(
+    post,
+    path = "/api/v1/users",
+    tag = "users",
+    request_body = CreateUser,
+    responses(
+        (status = 201, description = "Kullanıcı oluşturuldu", body = UserResponse),
+        (status = 400, description = "Geçersiz istek", body = ApiResponse),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
 pub async fn create_user(
     user_data: web::Json<CreateUser>,
     db: web::Data<Database>,
@@ -116,6 +181,20 @@ pub async fn create_user(
 }
 
 // ID'ye göre kullanıcı getirme endpoint'i (GET)
+#[utoipa::path(
+    get,
+    path = "/api/v1/users/{id}",
+    tag = "users",
+    params(
+        ("id" = String, Path, description = "Kullanıcı ID'si (UUID)")
+    ),
+    responses(
+        (status = 200, description = "Kullanıcı bulundu", body = UserResponse),
+        (status = 400, description = "Geçersiz ID formatı", body = ApiResponse),
+        (status = 404, description = "Kullanıcı bulunamadı", body = ApiResponse),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
 pub async fn get_user(
     path: web::Path<String>,
     db: web::Data<Database>,
@@ -157,6 +236,21 @@ pub async fn get_user(
 }
 
 // Kullanıcı güncelleme endpoint'i (PUT)
+#[utoipa::path(
+    put,
+    path = "/api/v1/users/{id}",
+    tag = "users",
+    params(
+        ("id" = String, Path, description = "Kullanıcı ID'si (UUID)")
+    ),
+    request_body = UpdateUser,
+    responses(
+        (status = 200, description = "Kullanıcı güncellendi", body = UserResponse),
+        (status = 400, description = "Geçersiz ID formatı", body = ApiResponse),
+        (status = 404, description = "Kullanıcı bulunamadı", body = ApiResponse),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
 pub async fn update_user(
     path: web::Path<String>,
     user_data: web::Json<UpdateUser>,
@@ -222,6 +316,20 @@ pub async fn update_user(
 }
 
 // Kullanıcı silme endpoint'i (DELETE)
+#[utoipa::path(
+    delete,
+    path = "/api/v1/users/{id}",
+    tag = "users",
+    params(
+        ("id" = String, Path, description = "Kullanıcı ID'si (UUID)")
+    ),
+    responses(
+        (status = 200, description = "Kullanıcı silindi", body = ApiResponse),
+        (status = 400, description = "Geçersiz ID formatı", body = ApiResponse),
+        (status = 404, description = "Kullanıcı bulunamadı", body = ApiResponse),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
 pub async fn delete_user(
     path: web::Path<String>,
     db: web::Data<Database>,
@@ -269,6 +377,15 @@ pub async fn delete_user(
 // ====== PORT HANDLERS ======
 
 // Tüm limanları getirme endpoint'i (GET)
+#[utoipa::path(
+    get,
+    path = "/api/v1/ports",
+    tag = "ports",
+    responses(
+        (status = 200, description = "Liman listesi", body = Vec<PortResponse>),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
 pub async fn get_all_ports(db: web::Data<Database>) -> Result<HttpResponse> {
     match db.get_all_ports().await {
         Ok(ports) => {
@@ -287,6 +404,17 @@ pub async fn get_all_ports(db: web::Data<Database>) -> Result<HttpResponse> {
 }
 
 // Liman oluşturma endpoint'i (POST)
+#[utoipa::path(
+    post,
+    path = "/api/v1/ports",
+    tag = "ports",
+    request_body = CreatePort,
+    responses(
+        (status = 201, description = "Liman oluşturuldu", body = PortResponse),
+        (status = 400, description = "Geçersiz istek", body = ApiResponse),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
 pub async fn create_port(
     port_data: web::Json<CreatePort>,
     db: web::Data<Database>,
@@ -329,29 +457,29 @@ pub async fn create_port(
 }
 
 // En yakın liman bulma endpoint'i (POST)
+#[utoipa::path(
+    post,
+    path = "/api/v1/ports/nearest",
+    tag = "ports",
+    request_body = FindNearestPortRequest,
+    responses(
+        (status = 200, description = "Yakındaki limanlar", body = Vec<PortResponse>),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
 pub async fn find_nearest_port(
     request: web::Json<FindNearestPortRequest>,
     db: web::Data<Database>,
 ) -> Result<HttpResponse> {
     match db.find_nearest_port(request.latitude, request.longitude, None).await {
-        Ok(Some((port, distance_km))) => {
-            let response = NearestPortResponse {
-                port: port.into(),
-                distance_km,
-            };
-            Ok(HttpResponse::Ok().json(response))
-        }
-        Ok(None) => {
-            let response = ApiResponse {
-                message: "Belirtilen mesafede liman bulunamadı".to_string(),
-                status: "error".to_string(),
-            };
-            Ok(HttpResponse::NotFound().json(response))
+        Ok(ports) => {
+            let port_responses: Vec<PortResponse> = ports.into_iter().map(|p| p.into()).collect();
+            Ok(HttpResponse::Ok().json(port_responses))
         }
         Err(e) => {
             eprintln!("Database error: {}", e);
             let response = ApiResponse {
-                message: "En yakın liman aranırken hata oluştu".to_string(),
+                message: "Yakındaki limanlar aranırken hata oluştu".to_string(),
                 status: "error".to_string(),
             };
             Ok(HttpResponse::InternalServerError().json(response))
@@ -360,6 +488,18 @@ pub async fn find_nearest_port(
 }
 
 // Ülkeye göre limanları getirme endpoint'i (GET)
+#[utoipa::path(
+    get,
+    path = "/api/v1/ports/country/{country}",
+    tag = "ports",
+    params(
+        ("country" = String, Path, description = "Ülke adı")
+    ),
+    responses(
+        (status = 200, description = "Liman listesi", body = Vec<PortResponse>),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
 pub async fn get_ports_by_country(
     path: web::Path<String>,
     db: web::Data<Database>,
@@ -383,6 +523,18 @@ pub async fn get_ports_by_country(
 }
 
 // Liman tipine göre limanları getirme endpoint'i (GET)
+#[utoipa::path(
+    get,
+    path = "/api/v1/ports/type/{port_type}",
+    tag = "ports",
+    params(
+        ("port_type" = String, Path, description = "Liman tipi (container, cruise, cargo, fishing)")
+    ),
+    responses(
+        (status = 200, description = "Liman listesi", body = Vec<PortResponse>),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
 pub async fn get_ports_by_type(
     path: web::Path<String>,
     db: web::Data<Database>,
@@ -398,6 +550,47 @@ pub async fn get_ports_by_type(
             eprintln!("Database error: {}", e);
             let response = ApiResponse {
                 message: "Limanlar getirilirken hata oluştu".to_string(),
+                status: "error".to_string(),
+            };
+            Ok(HttpResponse::InternalServerError().json(response))
+        }
+    }
+}
+
+// H3 tabanlı kullanıcı heatmap verilerini getirme endpoint'i (GET)
+#[utoipa::path(
+    get,
+    path = "/api/v1/users/heatmap",
+    tag = "users",
+    params(
+        ("resolution" = Option<u8>, Query, description = "H3 çözünürlüğü (varsayılan: 8)")
+    ),
+    responses(
+        (status = 200, description = "Heatmap verileri", body = H3HeatmapResponse),
+        (status = 500, description = "Sunucu hatası", body = ApiResponse)
+    )
+)]
+pub async fn get_user_heatmap(
+    query: web::Query<std::collections::HashMap<String, String>>,
+    db: web::Data<Database>,
+) -> Result<HttpResponse> {
+    // Çözünürlüğü sorgu parametresinden al, varsayılan olarak 8 kullan
+    let resolution = query
+        .get("resolution")
+        .and_then(|r| r.parse::<u8>().ok())
+        .unwrap_or(8);
+    
+    // 0-15 aralığında bir çözünürlük olduğundan emin ol
+    let resolution = resolution.clamp(0, 15);
+
+    match db.get_user_heatmap_data(resolution).await {
+        Ok(heatmap_data) => {
+            Ok(HttpResponse::Ok().json(heatmap_data))
+        }
+        Err(e) => {
+            eprintln!("Database error: {}", e);
+            let response = ApiResponse {
+                message: "Heatmap verileri getirilirken hata oluştu".to_string(),
                 status: "error".to_string(),
             };
             Ok(HttpResponse::InternalServerError().json(response))

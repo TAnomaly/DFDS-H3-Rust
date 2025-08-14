@@ -64,7 +64,7 @@ pub fn get_resolution_info(resolution: u8) -> &'static str {
 }
 
 /// Varsayılan H3 resolution (şehir düzeyi)
-pub const DEFAULT_RESOLUTION: u8 = 9;
+pub const DEFAULT_RESOLUTION: u8 = 7;
 
 /// İki koordinat arasındaki gerçek mesafeyi km cinsinden hesaplar (Haversine formülü)
 pub fn calculate_distance_km(lat1: f64, lng1: f64, lat2: f64, lng2: f64) -> f64 {
@@ -105,7 +105,7 @@ pub fn calculate_k_for_distance(distance_km: f64, resolution: u8) -> u32 {
         4 => 22.6,
         5 => 8.54,
         6 => 3.23,
-        7 => 1.22,
+        7 => 1.22, // Resolution 7 için ortalama cell boyutu
         8 => 0.461,
         9 => 0.174, // Varsayılan resolution
         10 => 0.0659,
@@ -114,7 +114,7 @@ pub fn calculate_k_for_distance(distance_km: f64, resolution: u8) -> u32 {
         13 => 0.00357,
         14 => 0.00135,
         15 => 0.000509,
-        _ => 0.174, // Varsayılan olarak resolution 9
+        _ => 1.22, // Varsayılan olarak resolution 7
     };
     
     // Kabaca kaç ring gerektiğini hesapla
